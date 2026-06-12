@@ -33,7 +33,8 @@ uv run python scripts/smoke_client.py [url] [--real]
 - `juscraper_mcp/serialize.py` — DataFrame → JSON truncado (limites em `settings.py`).
 - `infra/` — Terraform que **reusa** o RG/CAE/ACR do escritorio-servicos. Não criar recursos
   de custo fixo. Orçamento do projeto: R$ 200/mês (budget alert já configurado);
-  `max_replicas=1` e 0.25 vCPU são decisões de custo — não aumentar sem discutir.
+  `max_replicas=20` existe para uso em sala de aula, mas `min_replicas=0` e 0.25 vCPU são
+  decisões de custo — não aumentar sem discutir.
 
 ## Testes
 

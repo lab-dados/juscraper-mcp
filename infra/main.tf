@@ -6,9 +6,10 @@
 # Decisões de custo (orçamento: R$ 200/mês):
 # - min_replicas = 0 (scale-to-zero): MCP streamable HTTP é stateless, então
 #   cold start de alguns segundos é aceitável e o custo em idle é zero.
-# - max_replicas = 1 e 0.25 vCPU / 0.5 Gi: mesmo no pior caso (réplica ativa
-#   24/7 o mês inteiro) o custo fica em torno de R$ 100-120/mês, abaixo do teto.
-# - Budget alert em 50%/80%/100% de R$ 200, filtrado para este app.
+# - max_replicas = 20 para aguentar uso em sala de aula (30+ alunos
+#   simultâneos). O custo só existe enquanto há tráfego (KEDA derruba pra 0
+#   depois do burst); o guarda-corpo real é o budget alert em 50%/80%/100%
+#   de R$ 200, filtrado para este app.
 
 terraform {
   required_version = ">= 1.5"
@@ -73,7 +74,7 @@ resource "azurerm_container_app" "mcp" {
 
   template {
     min_replicas = 0
-    max_replicas = 1
+    max_replicas = 20
 
     container {
       name   = var.app_name

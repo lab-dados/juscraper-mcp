@@ -1,9 +1,10 @@
 """Rate limit por IP em middleware ASGI puro.
 
-Janela fixa em memória — suficiente porque o app roda com max_replicas=1
-(decisão de custo, ver infra/). Se um dia escalar horizontalmente, trocar
-por um backend compartilhado. Apenas POSTs no endpoint MCP contam; /health
-fica livre para probes.
+Janela fixa em memória, por réplica. Com max_replicas>1 o limite efetivo por
+IP é multiplicado pelo número de réplicas que o ingress alcançar — aceitável,
+porque o objetivo é conter abuso grosseiro, não impor cota exata (o teto de
+custo real é o budget alert da infra). Apenas POSTs no endpoint MCP contam;
+/health fica livre para probes.
 """
 
 import json

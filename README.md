@@ -75,8 +75,10 @@ da imagem (mesma convenção dos services do escritorio-servicos).
 
 O serviço é público e roda com orçamento de **R$ 200/mês**. Os guarda-corpos:
 
-- **Infra**: `min_replicas=0`, `max_replicas=1`, 0.25 vCPU / 0.5 Gi — mesmo com a réplica
-  ativa 24/7 o custo fica em ~R$ 100–120/mês. Budget alert (50/80/100% de R$ 200) por e-mail.
+- **Infra**: `min_replicas=0` (custo zero em idle), `max_replicas=20` (bursts de sala de
+  aula), 0.25 vCPU / 0.5 Gi por réplica. Budget alert (50/80/100% de R$ 200) por e-mail —
+  é ele o teto de custo real; se os alertas dispararem, reduza `max_replicas` ou coloque
+  autenticação.
 - **Servidor**: rate limit por IP (`JUSMCP_RATE_LIMIT_MAX`, padrão 30 req/60s), no máximo
   `JUSMCP_MAX_CONCORRENCIA` scrapes simultâneos (padrão 4), timeout de 200s por tool call.
 - **Por chamada**: máximo de `JUSMCP_MAX_PAGINAS` páginas (padrão 5), `JUSMCP_MAX_PROCESSOS`
