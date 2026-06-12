@@ -1,8 +1,8 @@
-# Deploy para o Azure Container Apps via OIDC federado (mesmo padrão do
-# escritorio-servicos). Requer:
-# - secrets AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID
-# - federated credential no app `labdados-gh-actions` para este repositório
-#   (ver README, seção "Deploy").
+# Deploy para o Azure Container Apps via OIDC federado (sem senha). Requer
+# configuração no repositório (ver README, seção "Deploy"):
+# - secrets: AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID
+# - variables: AZURE_RG / ACR_NAME
+# - uma federated credential apontando para este repo na app registration usada.
 name: Deploy
 
 on:
@@ -21,8 +21,9 @@ permissions:
   contents: read
 
 env:
-  AZURE_RG: resgroup
-  ACR_NAME: labdadosdevacr
+  # nomes da infra ficam em repo Variables (não no repo público)
+  AZURE_RG: ${{ vars.AZURE_RG }}
+  ACR_NAME: ${{ vars.ACR_NAME }}
   APP_NAME: juscraper-mcp
 
 jobs:

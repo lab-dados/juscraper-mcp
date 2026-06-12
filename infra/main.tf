@@ -1,7 +1,8 @@
-# Container App do juscraper-mcp, deployado DENTRO da infra existente do
-# LabDados (resource group, Container Apps Environment e ACR do
-# escritorio-servicos) para não criar custo fixo novo. Recursos criados aqui:
-# identidade, role de pull no ACR, o container app e o alerta de orçamento.
+# Container App do juscraper-mcp, deployado DENTRO de uma infra Azure existente
+# do LabDados (resource group, Container Apps Environment e ACR reaproveitados)
+# para não criar custo fixo novo. Os nomes/IDs reais vêm de terraform.tfvars
+# (gitignored). Recursos criados aqui: identidade, role de pull no ACR, o
+# container app e o alerta de orçamento.
 #
 # Decisões de custo (orçamento: R$ 200/mês):
 # - min_replicas = 0 (scale-to-zero): MCP streamable HTTP é stateless, então

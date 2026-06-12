@@ -1,25 +1,31 @@
+# Os valores reais da infra do LabDados (subscription, resource group, ACR, etc.)
+# NÃO vivem aqui — este é um repo público. Eles ficam em `terraform.tfvars`
+# (gitignored, gerado localmente por quem roda o terraform). Os defaults abaixo
+# são só os não-sensíveis (nome do app, orçamento, tags).
+
 variable "subscription_id" {
-  description = "Subscription do LabDados"
+  description = "Subscription onde os recursos vivem (definir em terraform.tfvars)"
   type        = string
-  default     = "66e9297b-9531-4d75-a0e0-004b2f4f8dde"
 }
 
 variable "resource_group_name" {
-  description = "Resource group existente (compartilhado com o escritorio-servicos)"
+  description = "Resource group existente reaproveitado (definir em terraform.tfvars)"
   type        = string
-  default     = "resgroup"
 }
 
 variable "container_app_environment_name" {
-  description = "Container Apps Environment existente"
+  description = "Container Apps Environment existente (definir em terraform.tfvars)"
   type        = string
-  default     = "labdados-env"
 }
 
 variable "acr_name" {
-  description = "Azure Container Registry existente"
+  description = "Azure Container Registry existente (definir em terraform.tfvars)"
   type        = string
-  default     = "labdadosdevacr"
+}
+
+variable "alert_emails" {
+  description = "E-mails que recebem os alertas de orçamento (definir em terraform.tfvars)"
+  type        = list(string)
 }
 
 variable "app_name" {
@@ -38,12 +44,6 @@ variable "budget_start_date" {
   description = "Início do período do budget — deve ser o dia 1º de um mês, em UTC"
   type        = string
   default     = "2026-06-01T00:00:00Z"
-}
-
-variable "alert_emails" {
-  description = "E-mails que recebem os alertas de orçamento"
-  type        = list(string)
-  default     = ["julio.trecenti@gmail.com"]
 }
 
 variable "tags" {

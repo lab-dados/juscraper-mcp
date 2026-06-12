@@ -96,48 +96,42 @@ escritorio-servicos já tem esse fluxo pronto).
 
 ## Deploy
 
-A infraestrutura reaproveita o resource group (`resgroup`), o Container Apps Environment
-(`labdados-env`) e o ACR (`labdadosdevacr`) do escritorio-servicos — nenhum recurso de custo
-fixo novo é criado.
+O deploy reaproveita uma infraestrutura Azure existente do LabDados (resource group, Container
+Apps Environment e ACR) — nenhum recurso de custo fixo novo é criado. Os nomes e IDs reais
+**não ficam neste repo público**: o GitHub Actions os lê de *secrets*/*variables* do
+repositório, e o Terraform de um `infra/terraform.tfvars` (gitignored). Os valores estão no
+repo interno `escritorio-servicos` (privado) — quem precisar, peça acesso.
 
-### Bootstrap (uma vez)
+### Configuração do repositório
 
-1. **Federated credential** para este repositório no app `labdados-gh-actions`
-   (o OIDC atual só cobre o repo do escritorio):
+O CI/CD usa **OIDC federado (sem senha)**. É preciso ter, no repositório:
 
-   ```bash
-   az ad app federated-credential create \
-     --id bc024242-86a5-4ee8-b7a7-9d3b6000b623 \
-     --parameters '{
-       "name": "github-juscraper-mcp",
-       "issuer": "https://token.actions.githubusercontent.com",
-       "subject": "repo:lab-dados/juscraper-mcp:ref:refs/heads/main",
-       "audiences": ["api://AzureADTokenExchange"]
-     }'
-   ```
+- **Secrets**: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (IDs da app
+  registration / tenant / subscription usados pelo `azure/login`).
+- **Variables**: `AZURE_RG`, `ACR_NAME` (nomes do resource group e do ACR).
+- Uma **federated credential** na app registration apontando para este repo
+  (`subject = repo:<org>/juscraper-mcp:ref:refs/heads/main`), para que só workflows da `main`
+  deste repo consigam autenticar.
 
-2. **Secrets do repositório** (mesmos valores do escritorio-servicos):
+### Bootstrap do Terraform (uma vez)
 
-   ```bash
-   gh secret set AZURE_CLIENT_ID --body bc024242-86a5-4ee8-b7a7-9d3b6000b623
-   gh secret set AZURE_TENANT_ID --body 46efd7f6-ba21-4344-8e77-5c995e77a627
-   gh secret set AZURE_SUBSCRIPTION_ID --body 66e9297b-9531-4d75-a0e0-004b2f4f8dde
-   ```
+```bash
+# 1. crie infra/terraform.tfvars com os valores reais (modelo abaixo)
+# 2. publique a primeira imagem (o Terraform precisa dela p/ criar o app)
+az acr build --registry <acr> --image juscraper-mcp:latest .
+# 3. aplique (state local, rodado da sua máquina)
+cd infra && terraform init && terraform apply && terraform output mcp_url
+```
 
-3. **Primeira imagem** (o Terraform precisa dela para criar o app):
+`infra/terraform.tfvars` (gitignored):
 
-   ```bash
-   az acr build --registry labdadosdevacr --image juscraper-mcp:latest .
-   ```
-
-4. **Terraform** (state local, rodado da sua máquina):
-
-   ```bash
-   cd infra
-   terraform init
-   terraform apply
-   terraform output mcp_url
-   ```
+```hcl
+subscription_id                = "..."
+resource_group_name            = "..."
+container_app_environment_name = "..."
+acr_name                       = "..."
+alert_emails                   = ["voce@exemplo.com"]
+```
 
 ### Dia a dia
 
