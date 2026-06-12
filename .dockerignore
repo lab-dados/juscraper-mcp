@@ -9,7 +9,7 @@ infra
 tests
 scripts
 docker-compose.yml
-README.md
+# README.md fica: o pyproject declara readme = "README.md" e o hatchling exige o arquivo
 CLAUDE.md
 .env
 .env.*
