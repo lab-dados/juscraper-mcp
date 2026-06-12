@@ -67,7 +67,7 @@ async def root(_request: Request) -> JSONResponse:
             "version": __version__,
             "mcp_endpoint": "/mcp",
             "transport": "streamable-http",
-            "docs": "https://github.com/jtrecenti/juscraper-mcp",
+            "docs": "https://github.com/lab-dados/juscraper-mcp",
         }
     )
 

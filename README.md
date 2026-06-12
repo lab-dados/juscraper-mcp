@@ -111,7 +111,7 @@ fixo novo é criado.
      --parameters '{
        "name": "github-juscraper-mcp",
        "issuer": "https://token.actions.githubusercontent.com",
-       "subject": "repo:jtrecenti/juscraper-mcp:ref:refs/heads/main",
+       "subject": "repo:lab-dados/juscraper-mcp:ref:refs/heads/main",
        "audiences": ["api://AzureADTokenExchange"]
      }'
    ```
@@ -151,7 +151,7 @@ e faz smoke test no `/health`. O Terraform ignora mudanças de imagem (`ignore_c
 cliente MCP (Claude, etc.)
    │  streamable HTTP (stateless, JSON)
    ▼
-Azure Container Apps  juscraper-mcp  (min=0, max=1, 0.25 vCPU)
+Azure Container Apps  juscraper-mcp  (min=0, max=20, 0.25 vCPU)
    │  RateLimitMiddleware (por IP) → FastMCP → tools
    │  semáforo global + timeout + thread por tool call
    ▼
