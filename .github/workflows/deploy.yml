@@ -1,0 +1,72 @@
+# Deploy para o Azure Container Apps via OIDC federado (mesmo padrão do
+# escritorio-servicos). Requer:
+# - secrets AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID
+# - federated credential no app `labdados-gh-actions` para este repositório
+#   (ver README, seção "Deploy").
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "juscraper_mcp/**"
+      - "main.py"
+      - "pyproject.toml"
+      - "Dockerfile"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_RG: resgroup
+  ACR_NAME: labdadosdevacr
+  APP_NAME: juscraper-mcp
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build da imagem no ACR
+        run: |
+          TAG="${GITHUB_SHA::8}"
+          az acr build \
+            --registry "${{ env.ACR_NAME }}" \
+            --image "${{ env.APP_NAME }}:${TAG}" \
+            --image "${{ env.APP_NAME }}:latest" \
+            --file Dockerfile \
+            .
+
+      - name: Atualizar Container App
+        run: |
+          TAG="${GITHUB_SHA::8}"
+          az containerapp update \
+            --name "${{ env.APP_NAME }}" \
+            --resource-group "${{ env.AZURE_RG }}" \
+            --image "${{ env.ACR_NAME }}.azurecr.io/${{ env.APP_NAME }}:${TAG}"
+
+      - name: Smoke test
+        run: |
+          FQDN=$(az containerapp show --name "${{ env.APP_NAME }}" --resource-group "${{ env.AZURE_RG }}" \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          for i in $(seq 1 12); do
+            if curl -fsS "https://${FQDN}/health"; then
+              echo "health ok"
+              exit 0
+            fi
+            echo "aguardando cold start (${i}/12)..."
+            sleep 10
+          done
+          echo "health check falhou após 120s"
+          exit 1

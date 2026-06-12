@@ -1,0 +1,42 @@
+[project]
+name = "juscraper-mcp"
+version = "0.1.0"
+description = "Servidor MCP público do juscraper — consultas a tribunais brasileiros sem autenticação"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Julio Trecenti" }]
+dependencies = [
+    "mcp>=1.12,<2",
+    "uvicorn[standard]>=0.32",
+    "juscraper @ git+https://github.com/jtrecenti/juscraper@main",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+# permite a dependência git direta do juscraper
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["juscraper_mcp"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.9",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

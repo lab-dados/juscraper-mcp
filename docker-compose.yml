@@ -1,0 +1,11 @@
+services:
+  juscraper-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: juscraper-mcp
+    environment:
+      JUSMCP_MAX_PAGINAS: "5"
+      JUSMCP_RATE_LIMIT_MAX: "120" # mais folgado em dev
+    ports:
+      - "8080:8080"

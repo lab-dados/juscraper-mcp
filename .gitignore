@@ -1,0 +1,19 @@
+# Python / uv — o uv.lock NÃO é commitado (resolvido no build, mesma convenção
+# dos services do escritorio-servicos)
+.venv/
+__pycache__/
+*.pyc
+uv.lock
+.pytest_cache/
+.ruff_cache/
+
+# Terraform
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.backup
+infra/*.tfvars
+infra/.terraform.lock.hcl
+
+# Ambiente
+.env
+.env.*
