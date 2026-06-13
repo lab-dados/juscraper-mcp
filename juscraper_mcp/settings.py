@@ -23,7 +23,8 @@ def _float(name: str, default: float) -> float:
 class Settings:
     port: int
     # Limites por chamada de tool
-    max_paginas: int  # páginas de busca por chamada (cjsg/cjpg/datajud/comunica)
+    max_paginas: int  # páginas de busca POR CHAMADA (lote); ~4-5s/página, limitado pelo timeout
+    max_pagina_inicial: int  # página de início mais alta — define a profundidade total alcançável
     max_processos: int  # números CNJ por chamada de consultar_processo
     max_linhas: int  # linhas retornadas após serialização do DataFrame
     max_chars_celula: int  # truncamento de campos de texto longos (ementas)
@@ -38,9 +39,10 @@ class Settings:
 
 settings = Settings(
     port=_int("PORT", 8080),
-    max_paginas=_int("JUSMCP_MAX_PAGINAS", 5),
+    max_paginas=_int("JUSMCP_MAX_PAGINAS", 20),
+    max_pagina_inicial=_int("JUSMCP_MAX_PAGINA_INICIAL", 100),
     max_processos=_int("JUSMCP_MAX_PROCESSOS", 5),
-    max_linhas=_int("JUSMCP_MAX_LINHAS", 50),
+    max_linhas=_int("JUSMCP_MAX_LINHAS", 300),
     max_chars_celula=_int("JUSMCP_MAX_CHARS_CELULA", 6000),
     sleep_time=_float("JUSMCP_SLEEP_TIME", 1.0),
     max_concorrencia=_int("JUSMCP_MAX_CONCORRENCIA", 4),

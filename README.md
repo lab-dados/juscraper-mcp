@@ -81,9 +81,15 @@ O serviço é público e roda com orçamento de **R$ 200/mês**. Os guarda-corpo
   autenticação.
 - **Servidor**: rate limit por IP (`JUSMCP_RATE_LIMIT_MAX`, padrão 30 req/60s), no máximo
   `JUSMCP_MAX_CONCORRENCIA` scrapes simultâneos (padrão 4), timeout de 200s por tool call.
-- **Por chamada**: máximo de `JUSMCP_MAX_PAGINAS` páginas (padrão 5), `JUSMCP_MAX_PROCESSOS`
-  números CNJ (padrão 5), `JUSMCP_MAX_LINHAS` linhas retornadas (padrão 50) e
-  `JUSMCP_MAX_CHARS_CELULA` caracteres por campo de texto (padrão 6000).
+- **Por chamada**: cada chamada baixa um lote de até `JUSMCP_MAX_PAGINAS` páginas (padrão 20),
+  retorna até `JUSMCP_MAX_LINHAS` linhas (padrão 300) e trunca cada campo de texto em
+  `JUSMCP_MAX_CHARS_CELULA` caracteres (padrão 6000); `consultar_processo` aceita até
+  `JUSMCP_MAX_PROCESSOS` números CNJ (padrão 5).
+- **Paginação**: como cada página leva ~4-5s, não dá para baixar muitas de uma vez (estoura o
+  tempo limite). Em vez disso, as buscas aceitam `pagina_inicial` (1 a `JUSMCP_MAX_PAGINA_INICIAL`,
+  padrão 100): a resposta devolve `proxima_pagina_inicial` e o modelo repete a chamada para
+  varrer até a página 100. (O Datajud é exceção: usa cursor forward-only, então pagina sempre
+  a partir da 1ª página — use `tamanho_pagina` para volume.)
 - **Tribunais**: pausa fixa de `JUSMCP_SLEEP_TIME` (padrão 1s) entre requisições, não
   configurável pelo cliente.
 

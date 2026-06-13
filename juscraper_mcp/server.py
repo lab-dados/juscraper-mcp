@@ -31,14 +31,17 @@ Capacidades:
 Como usar bem:
 1. Comece por `listar_tribunais` para ver siglas, capacidades e filtros disponíveis.
 2. Para "quantos processos sobre X", prefira `datajud_contar_processos` (rápido e barato).
-3. Para teor de decisões (ementas), use `buscar_jurisprudencia` com poucos páginas e filtros
-   de data/classe — cada página leva alguns segundos porque o scraping respeita pausas entre
-   requisições aos tribunais.
+3. Para teor de decisões (ementas), use `buscar_jurisprudencia` com filtros de data/classe.
+   Cada página leva ~4-5s (o scraping respeita pausas), então cada chamada baixa um LOTE de
+   poucas páginas. Para varrer mais fundo, pagine: repita a chamada usando o valor de
+   `proxima_pagina_inicial` que vem na resposta (dá pra ir até a página 100). Não tente baixar
+   dezenas de páginas num único call — estoura o tempo limite.
 4. Números de processo devem estar no formato CNJ (NNNNNNN-DD.AAAA.J.TR.OOOO), com ou sem
    pontuação.
 5. As respostas são truncadas para caber no contexto (máximo de linhas e de caracteres por
-   campo); o payload indica quando houve truncamento. Para extrações em massa, use o pacote
-   Python `juscraper` (https://github.com/jtrecenti/juscraper) em vez deste MCP.
+   campo); o payload indica quando houve truncamento e traz 'proxima_pagina_inicial' para
+   continuar. Para extrações em massa, use o pacote Python `juscraper`
+   (https://github.com/jtrecenti/juscraper) em vez deste MCP.
 
 Este serviço é mantido pelo LabDados (FGV Direito SP) com orçamento limitado: as chamadas têm
 limites de páginas, linhas e taxa por IP. Use com parcimônia.

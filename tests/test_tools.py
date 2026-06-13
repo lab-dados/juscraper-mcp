@@ -113,8 +113,44 @@ async def test_buscar_jurisprudencia_tribunal_invalido(fake):
 
 async def test_paginas_acima_do_limite(fake):
     async with create_connected_server_and_client_session(mcp._mcp_server) as client:
-        result = await client.call_tool("buscar_jurisprudencia", {"tribunal": "tjsp", "pesquisa": "x", "paginas": 99})
+        result = await client.call_tool("buscar_jurisprudencia", {"tribunal": "tjsp", "pesquisa": "x", "paginas": 999})
         assert result.isError
+
+
+async def test_paginacao_pagina_inicial(fake):
+    async with create_connected_server_and_client_session(mcp._mcp_server) as client:
+        payload = _payload(
+            await client.call_tool(
+                "buscar_jurisprudencia",
+                {"tribunal": "tjsp", "pesquisa": "x", "paginas": 3, "pagina_inicial": 10},
+            )
+        )
+        _metodo, kwargs = fake.chamadas[0]
+        assert list(kwargs["paginas"]) == [10, 11, 12]
+        # hint para continuar a partir da próxima página
+        assert payload["proxima_pagina_inicial"] == 13
+        assert "dica_paginacao" in payload
+
+
+async def test_pagina_inicial_acima_do_maximo(fake):
+    async with create_connected_server_and_client_session(mcp._mcp_server) as client:
+        result = await client.call_tool(
+            "buscar_jurisprudencia", {"tribunal": "tjsp", "pesquisa": "x", "pagina_inicial": 101}
+        )
+        assert result.isError
+
+
+async def test_comunica_pagina_inicial(fake):
+    async with create_connected_server_and_client_session(mcp._mcp_server) as client:
+        payload = _payload(
+            await client.call_tool(
+                "buscar_comunicacoes_cnj",
+                {"pesquisa": "usucapião", "paginas": 2, "pagina_inicial": 5},
+            )
+        )
+        _metodo, kwargs = fake.chamadas[0]
+        assert list(kwargs["paginas"]) == [5, 6]
+        assert payload["proxima_pagina_inicial"] == 7
 
 
 async def test_consultar_processo_segundo_grau(fake):

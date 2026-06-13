@@ -26,6 +26,17 @@ _semaforo = asyncio.Semaphore(settings.max_concorrencia)
 
 _READONLY = ToolAnnotations(readOnlyHint=True, openWorldHint=True)
 
+_DESC_PAGINAS = (
+    f"Tamanho do LOTE: quantas páginas baixar nesta chamada (1 a {settings.max_paginas}). "
+    "Cada página leva ~4-5s, então lotes grandes podem ser lentos. Para ir mais fundo, não "
+    "aumente demais aqui — prefira chamar de novo com 'pagina_inicial' maior."
+)
+_DESC_PAGINA_INICIAL = (
+    f"Página onde o lote começa (1-based), de 1 a {settings.max_pagina_inicial}. É assim que se "
+    "pagina: a 1ª chamada usa 1, as seguintes usam o 'proxima_pagina_inicial' devolvido na "
+    "resposta — dá pra varrer até a página {0}.".format(settings.max_pagina_inicial)
+)
+
 
 def _get_scraper(sigla: str) -> Any:
     """Instancia o scraper com a pausa padrão entre requests, quando o construtor aceita."""
@@ -56,11 +67,29 @@ async def _executar(descricao: str, fn, /, **kwargs) -> Any:
 
 
 def _montar_paginas(pagina_inicial: int, paginas: int) -> range:
-    if pagina_inicial < 1:
-        raise ToolError("pagina_inicial deve ser >= 1 (a paginação dos tribunais começa em 1).")
+    if not 1 <= pagina_inicial <= settings.max_pagina_inicial:
+        raise ToolError(
+            f"pagina_inicial deve estar entre 1 e {settings.max_pagina_inicial} "
+            "(a paginação dos tribunais começa em 1)."
+        )
     if not 1 <= paginas <= settings.max_paginas:
-        raise ToolError(f"paginas deve estar entre 1 e {settings.max_paginas} por chamada.")
+        raise ToolError(
+            f"paginas (tamanho do lote) deve estar entre 1 e {settings.max_paginas} por chamada. "
+            "Para ir além, faça outra chamada aumentando 'pagina_inicial'."
+        )
     return range(pagina_inicial, pagina_inicial + paginas)
+
+
+def _hint_proxima_pagina(payload: dict[str, Any], intervalo: range) -> None:
+    """Se o lote veio cheio, sugere de onde continuar — paginação por chamadas sucessivas."""
+    if payload.get("truncado") or payload.get("total_resultados_obtidos", 0) > 0:
+        proxima = intervalo.stop
+        if proxima <= settings.max_pagina_inicial:
+            payload["proxima_pagina_inicial"] = proxima
+            payload["dica_paginacao"] = (
+                f"Para ver mais resultados, chame de novo com pagina_inicial={proxima}. "
+                "Os resultados vêm em ordem de relevância/data; páginas seguintes trazem itens novos."
+            )
 
 
 def _filtros_nao_nulos(**filtros: Any) -> dict[str, Any]:
@@ -86,8 +115,14 @@ async def listar_tribunais() -> dict[str, Any]:
         "nao_suportados": NAO_SUPORTADOS,
         "limites": {
             "max_paginas_por_chamada": settings.max_paginas,
+            "max_pagina_inicial": settings.max_pagina_inicial,
             "max_processos_por_chamada": settings.max_processos,
             "max_linhas_retornadas": settings.max_linhas,
+            "paginacao": (
+                f"Cada chamada baixa um lote de até {settings.max_paginas} páginas; varra mais fundo "
+                f"(até a página {settings.max_pagina_inicial}) repetindo a chamada com 'pagina_inicial' "
+                "maior — a resposta traz 'proxima_pagina_inicial'."
+            ),
         },
     }
 
@@ -107,10 +142,8 @@ async def buscar_jurisprudencia(
             'aspas para expressão exata ("dano moral"), E / OU entre termos.'
         ),
     ],
-    paginas: Annotated[
-        int, Field(description="Quantas páginas de resultados baixar.", ge=1, le=settings.max_paginas)
-    ] = 1,
-    pagina_inicial: Annotated[int, Field(description="Página inicial (1-based), para paginar.", ge=1)] = 1,
+    paginas: Annotated[int, Field(description=_DESC_PAGINAS, ge=1, le=settings.max_paginas)] = 1,
+    pagina_inicial: Annotated[int, Field(description=_DESC_PAGINA_INICIAL, ge=1, le=settings.max_pagina_inicial)] = 1,
     ementa: Annotated[str | None, Field(description="Busca restrita ao texto da ementa.")] = None,
     classe: Annotated[str | None, Field(description="Filtro por classe processual (nome ou código).")] = None,
     assunto: Annotated[str | None, Field(description="Filtro por assunto (nome ou código TPU).")] = None,
@@ -129,9 +162,10 @@ async def buscar_jurisprudencia(
     """Busca jurisprudência de 2º grau (acórdãos e decisões, com ementa) em um tribunal.
 
     Cada página tem em torno de 10 a 20 resultados e leva alguns segundos para ser baixada,
-    porque o scraping respeita pausas entre requisições. Comece com 1 página e filtros de data;
-    aumente só se precisar. Nem todo filtro existe em todo tribunal — se um filtro não for
-    suportado, o erro indicará isso; consulte listar_tribunais para a lista exata.
+    porque o scraping respeita pausas entre requisições. Comece com 1-2 páginas e filtros de
+    data; para varrer mais fundo, pagine repetindo a chamada com 'pagina_inicial' maior (a
+    resposta traz 'proxima_pagina_inicial' pronta). Nem todo filtro existe em todo tribunal —
+    se um filtro não for suportado, o erro indicará isso; consulte listar_tribunais.
     """
     sigla = validar_tribunal(tribunal, "cjsg")
     intervalo = _montar_paginas(pagina_inicial, paginas)
@@ -152,16 +186,15 @@ async def buscar_jurisprudencia(
     df = await _executar(f"jurisprudência ({sigla})", scraper.cjsg, pesquisa=pesquisa, paginas=intervalo, **filtros)
     payload = df_para_payload(df)
     payload["consulta"] = {"tribunal": sigla, "pesquisa": pesquisa, "paginas": list(intervalo), **filtros}
+    _hint_proxima_pagina(payload, intervalo)
     return payload
 
 
 @mcp.tool(annotations=_READONLY)
 async def buscar_julgados_primeira_instancia(
     pesquisa: Annotated[str, Field(description="Termos de busca livre no texto das decisões.")],
-    paginas: Annotated[
-        int, Field(description="Quantas páginas de resultados baixar.", ge=1, le=settings.max_paginas)
-    ] = 1,
-    pagina_inicial: Annotated[int, Field(description="Página inicial (1-based), para paginar.", ge=1)] = 1,
+    paginas: Annotated[int, Field(description=_DESC_PAGINAS, ge=1, le=settings.max_paginas)] = 1,
+    pagina_inicial: Annotated[int, Field(description=_DESC_PAGINA_INICIAL, ge=1, le=settings.max_pagina_inicial)] = 1,
     data_julgamento_inicio: Annotated[str | None, Field(description="Data de julgamento mínima, YYYY-MM-DD.")] = None,
     data_julgamento_fim: Annotated[str | None, Field(description="Data de julgamento máxima, YYYY-MM-DD.")] = None,
     tribunal: Annotated[
@@ -185,6 +218,7 @@ async def buscar_julgados_primeira_instancia(
     )
     payload = df_para_payload(df)
     payload["consulta"] = {"tribunal": sigla, "pesquisa": pesquisa, "paginas": list(intervalo), **filtros}
+    _hint_proxima_pagina(payload, intervalo)
     return payload
 
 
@@ -343,7 +377,16 @@ async def datajud_listar_processos(
     data_ajuizamento_inicio: Annotated[str | None, Field(description="Data de ajuizamento mínima, YYYY-MM-DD.")] = None,
     data_ajuizamento_fim: Annotated[str | None, Field(description="Data de ajuizamento máxima, YYYY-MM-DD.")] = None,
     orgao_julgador: Annotated[str | None, Field(description="Filtro por órgão julgador.")] = None,
-    paginas: Annotated[int, Field(description="Quantas páginas baixar.", ge=1, le=settings.max_paginas)] = 1,
+    paginas: Annotated[
+        int,
+        Field(
+            description="Quantas páginas baixar, sempre a partir da 1ª (o Datajud usa cursor "
+            f"forward-only, então não há 'pagina_inicial' aqui). 1 a {settings.max_paginas}. "
+            "Para mais volume por página, aumente 'tamanho_pagina'.",
+            ge=1,
+            le=settings.max_paginas,
+        ),
+    ] = 1,
     tamanho_pagina: Annotated[int, Field(description="Processos por página na API (10 a 500).", ge=10, le=500)] = 100,
     mostrar_movs: Annotated[
         bool, Field(description="Incluir movimentações de cada processo (aumenta muito a resposta).")
@@ -398,17 +441,18 @@ async def buscar_comunicacoes_cnj(
     data_disponibilizacao_fim: Annotated[
         str | None, Field(description="Data de disponibilização máxima, YYYY-MM-DD.")
     ] = None,
-    paginas: Annotated[int, Field(description="Quantas páginas baixar.", ge=1, le=settings.max_paginas)] = 1,
+    paginas: Annotated[int, Field(description=_DESC_PAGINAS, ge=1, le=settings.max_paginas)] = 1,
+    pagina_inicial: Annotated[int, Field(description=_DESC_PAGINA_INICIAL, ge=1, le=settings.max_pagina_inicial)] = 1,
     itens_por_pagina: Annotated[int, Field(description="Itens por página na API (1 a 100).", ge=1, le=100)] = 20,
 ) -> dict[str, Any]:
     """Busca comunicações processuais no Comunica CNJ (Diário de Justiça Eletrônico Nacional).
 
     Cobre intimações, citações e editais publicados pelos tribunais. Cada item traz o número do
     processo, o tribunal de origem, o texto da comunicação e o link oficial. Bom para monitorar
-    publicações recentes sobre um tema, nome ou número de processo.
+    publicações recentes sobre um tema, nome ou número de processo. Pagine com 'pagina_inicial'
+    para ver mais resultados.
     """
-    if not 1 <= paginas <= settings.max_paginas:
-        raise ToolError(f"paginas deve estar entre 1 e {settings.max_paginas} por chamada.")
+    intervalo = _montar_paginas(pagina_inicial, paginas)
     filtros = _filtros_nao_nulos(
         data_disponibilizacao_inicio=data_disponibilizacao_inicio,
         data_disponibilizacao_fim=data_disponibilizacao_fim,
@@ -418,10 +462,16 @@ async def buscar_comunicacoes_cnj(
         "Comunica CNJ",
         scraper.listar_comunicacoes,
         pesquisa=pesquisa,
-        paginas=range(1, paginas + 1),
+        paginas=intervalo,
         itens_por_pagina=itens_por_pagina,
         **filtros,
     )
     payload = df_para_payload(df)
-    payload["consulta"] = {"pesquisa": pesquisa, "paginas": paginas, "itens_por_pagina": itens_por_pagina, **filtros}
+    payload["consulta"] = {
+        "pesquisa": pesquisa,
+        "paginas": list(intervalo),
+        "itens_por_pagina": itens_por_pagina,
+        **filtros,
+    }
+    _hint_proxima_pagina(payload, intervalo)
     return payload
